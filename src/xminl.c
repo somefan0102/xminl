@@ -2,7 +2,7 @@
 #include <string.h>
 #include "xminl.h"
 
-#define xminl_is_start(c) (strchr(":_", (c)) || isalpha(c) || (c) > 0x7f)
+#define xminl_is_name_start(c) (strchr(":_", (c)) || isalpha(c) || (c) > 0x7f)
 #define xminl_error(x, m, l) (x)->error_message = (m); (x)->error_location = (l);
 
 int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
@@ -39,12 +39,12 @@ static size_t xminl_lex_space(struct XMINL_Handler *x, char *s) {
 static size_t xminl_lex_name(struct XMINL_Handler *x, char *s) {
     char *t = s;
 
-    if (!xminl_is_start(*s)) {
+    if (!xminl_is_name_start(*s)) {
         xminl_error(x, "Invalid name", t);
         return 0;
     }
 
-    while (xminl_is_start(*s) || isdigit(*s) || strchr(".-", *s))
+    while (xminl_is_name_start(*s) || isdigit(*s) || strchr(".-", *s))
         s++;
     
     return s-t;
@@ -116,9 +116,54 @@ static size_t xminl_lex_cdata_raw(struct XMINL_Handler *x, char *s) {
     return s-t;
 }
 
-/* TODO */
 static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
-    return 0;
+    char *t = s;
+    int done = 0;
+
+    while (!done && *s) {
+        char *name, *value, quote;
+        s += xminl_lex_space(x, s);
+
+        if (xminl_is_name_start(*s)) {
+            name = s;
+            s += xminl_lex_name(x, s);
+            if (xminl_push(x, XMINL_LEX_ATTR_NAME, name, s-name))
+                return 0;
+        } else {
+            done = 1;
+            continue;
+        }
+
+        s += xminl_lex_space(x, s);
+        if (*s != '=') {
+            xminl_error(x, "Missing equal", t);
+            return 0;
+        }
+        s++;
+        s += xminl_lex_space(x, s);
+
+        if (*s != '"' && *s != '\'') {
+            xminl_error(x, "Missing start quote", t);
+            return 0;
+        }
+        quote = *s;
+        s++;
+
+        value = s;
+        while (*s != quote && *s)
+            s++;
+
+        if (!*s) {
+            xminl_error(x, "Missing end quote", t);
+            return 0;
+        }
+
+        if (xminl_push(x, XMINL_LEX_ATTR_VALUE, value, s-value))
+            return 0;
+        s++;
+    }
+
+    return s-t;
 }
 
 /* TODO */
@@ -134,12 +179,12 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
 struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Lex *lex, size_t lex_len) {
     struct XMINL_Handler x;
     memset(&x, 0, sizeof(x));
+    memset(lex, 0, sizeof(struct XMINL_Lex)*lex_len);
+    memset(data, 0, sizeof(char)*data_len);
     x.data_buf = x.data_bufp = data;
     x.lex_buf = x.lex_bufp = lex;
     x.data_len = data_len;
     x.lex_len = lex_len;
-    memset(x.lex_buf, 0, sizeof(struct XMINL_Lex)*lex_len);
-    memset(x.data_buf, 0, sizeof(char)*data_len);
     return x;
 }
 
