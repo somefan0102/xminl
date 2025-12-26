@@ -25,6 +25,6 @@ struct XMINL_Handler {
 };
 
 struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Lex *lex, size_t lex_len);
-int xminl_lex(struct XMINL_Handler *x, char *s);
+int xminl_lex(struct XMINL_Handler *handle, char *document);
 
 #endif

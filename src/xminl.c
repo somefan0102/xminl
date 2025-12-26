@@ -107,7 +107,7 @@ static size_t xminl_lex_cdata(struct XMINL_Handler *x, char *s) {
 static size_t xminl_lex_cdata_raw(struct XMINL_Handler *x, char *s) {
     char *t = s;
 
-    while (!strchr("<&", *s))
+    while (*s != '<')
         s++;
 
     if (s == t || xminl_push(x, XMINL_LEX_CDATA, t, s-t))
@@ -128,7 +128,7 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
             name = s;
             s += xminl_lex_name(x, s);
             if (xminl_push(x, XMINL_LEX_ATTR_NAME, name, s-name))
-                return 0;
+                return -1;
         } else {
             done = 1;
             continue;
@@ -137,14 +137,14 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
         s += xminl_lex_space(x, s);
         if (*s != '=') {
             xminl_error(x, "Missing equal for attribute", s);
-            return 0;
+            return -1;
         }
         s++;
         s += xminl_lex_space(x, s);
 
         if (*s != '"' && *s != '\'') {
             xminl_error(x, "Missing start quote for attribute value", s);
-            return 0;
+            return -1;
         }
         quote = *s;
         s++;
@@ -155,11 +155,11 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
 
         if (!*s) {
             xminl_error(x, "Missing end quote for attribute value", s);
-            return 0;
+            return -1;
         }
 
         if (xminl_push(x, XMINL_LEX_ATTR_VALUE, value, s-value))
-            return 0;
+            return -1;
         s++;
     }
 
