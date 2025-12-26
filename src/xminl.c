@@ -31,7 +31,7 @@ int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
 
 static size_t xminl_lex_space(struct XMINL_Handler *x, char *s) {
     char *t = s;
-    while (strchr(" \t\r\n", *s))
+    while (isspace(*s))
         s++;
     return s-t;
 }
@@ -46,7 +46,7 @@ static size_t xminl_lex_name(struct XMINL_Handler *x, char *s) {
 
     while (xminl_is_name_start(*s) || isdigit(*s) || strchr(".-", *s))
         s++;
-    
+
     return s-t;
 }
 
@@ -54,7 +54,7 @@ static size_t xminl_lex_group(struct XMINL_Handler *x, char *s, char *start, cha
     char *t = s;
 
     if (!start || !end) {
-        xminl_error(x, "Invalid start and end group delimiters", NULL);
+        xminl_error(x, "No start and end group delimiters", NULL);
         return 0;
     }
 
@@ -66,7 +66,7 @@ static size_t xminl_lex_group(struct XMINL_Handler *x, char *s, char *start, cha
 
     while (strncmp(s, end, strlen(end)) && *s)
         s++;
-    
+
     if (!*s) {
         xminl_error(x, end_error, t);
         return 0;
@@ -107,7 +107,7 @@ static size_t xminl_lex_cdata(struct XMINL_Handler *x, char *s) {
 static size_t xminl_lex_cdata_raw(struct XMINL_Handler *x, char *s) {
     char *t = s;
 
-    while (*s != '<' && *s != '&')
+    while (!strchr("<&", *s))
         s++;
 
     if (s == t || xminl_push(x, XMINL_LEX_CDATA, t, s-t))
@@ -136,14 +136,14 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
 
         s += xminl_lex_space(x, s);
         if (*s != '=') {
-            xminl_error(x, "Missing equal", t);
+            xminl_error(x, "Missing equal for attribute", s);
             return 0;
         }
         s++;
         s += xminl_lex_space(x, s);
 
         if (*s != '"' && *s != '\'') {
-            xminl_error(x, "Missing start quote", t);
+            xminl_error(x, "Missing start quote for attribute value", s);
             return 0;
         }
         quote = *s;
@@ -154,7 +154,7 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
             s++;
 
         if (!*s) {
-            xminl_error(x, "Missing end quote", t);
+            xminl_error(x, "Missing end quote for attribute value", s);
             return 0;
         }
 
