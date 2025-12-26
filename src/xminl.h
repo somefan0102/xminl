@@ -1,7 +1,7 @@
 #ifndef XMINL_H
 #define XMINL_H
 
-#include <stdlib.h>
+#include <stddef.h>
 
 struct XMINL_Lex {
     enum {

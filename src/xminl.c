@@ -5,7 +5,7 @@
 #define xminl_is_name_start(c) (strchr(":_", (c)) || isalpha(c) || (c) > 0x7f)
 #define xminl_error(x, m, l) (x)->error_message = (m); (x)->error_location = (l);
 
-int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
+static int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
     char *value = x->data_bufp;
     struct XMINL_Lex *lex = x->lex_bufp;
 
