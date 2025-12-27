@@ -3,28 +3,28 @@
 
 #include <stddef.h>
 
-struct XMINL_Lex {
+struct XMINL_Token {
     enum {
-        XMINL_LEX_NONE,
-        XMINL_LEX_TAG_START,
-        XMINL_LEX_TAG_END,
-        XMINL_LEX_TAG_EMPTY,
-        XMINL_LEX_ATTR_NAME,
-        XMINL_LEX_ATTR_VALUE,
-        XMINL_LEX_CDATA,
-        XMINL_LEX_PI
+        XMINL_TOKEN_NONE,
+        XMINL_TOKEN_TAG_START,
+        XMINL_TOKEN_TAG_END,
+        XMINL_TOKEN_TAG_EMPTY,
+        XMINL_TOKEN_ATTR_NAME,
+        XMINL_TOKEN_ATTR_VALUE,
+        XMINL_TOKEN_CDATA,
+        XMINL_TOKEN_PI
     } type;
     char *value;
 };
 
 struct XMINL_Handler {
     char *data_buf, *data_bufp;
-    struct XMINL_Lex *lex_buf, *lex_bufp;
-    size_t data_len, lex_len;
+    struct XMINL_Token *token_buf, *token_bufp;
+    size_t data_len, token_len;
     char *error_message, *error_location;
 };
 
-struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Lex *lex, size_t lex_len);
+struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Token *token_buf, size_t token_len);
 int xminl_lex(struct XMINL_Handler *handle, char *document);
 
 #endif

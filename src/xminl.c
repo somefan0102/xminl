@@ -7,13 +7,13 @@
 
 static int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
     char *value = x->data_bufp;
-    struct XMINL_Lex *lex = x->lex_bufp;
+    struct XMINL_Token *token = x->token_bufp;
 
     if (value + len + 1 > x->data_buf + x->data_len) {
         xminl_error(x, "String data exhausted", NULL);
         return 1;
-    } else if (lex + 1 > x->lex_buf + x->lex_len) {
-        xminl_error(x, "Lexeme data exhausted", NULL);
+    } else if (token + 1 > x->token_buf + x->token_len) {
+        xminl_error(x, "Token data exhausted", NULL);
         return 1;
     }
 
@@ -21,10 +21,10 @@ static int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
     value[len] = '\0';
     x->data_bufp += len + 1;
 
-    memset(lex, 0, sizeof(struct XMINL_Lex));
-    lex->type = type;
-    lex->value = value;
-    x->lex_bufp++;
+    memset(token, 0, sizeof(struct XMINL_Token));
+    token->type = type;
+    token->value = value;
+    x->token_bufp++;
 
     return 0;
 }
@@ -81,7 +81,7 @@ static size_t xminl_lex_pi(struct XMINL_Handler *x, char *s) {
         "Invalid start PI declaration", "Invalid end PI declaration"
     );
 
-    if (!res || xminl_push(x, XMINL_LEX_PI, s, res))
+    if (!res || xminl_push(x, XMINL_TOKEN_PI, s, res))
         return 0;
 
     return res;
@@ -98,7 +98,7 @@ static size_t xminl_lex_cdata(struct XMINL_Handler *x, char *s) {
         "Invalid start CDATA section", "Invalid end CDATA section"
     );
 
-    if (!res || xminl_push(x, XMINL_LEX_CDATA, s+strlen("<![CDATA["), res-strlen("<![CDATA[")-strlen("]]>")))
+    if (!res || xminl_push(x, XMINL_TOKEN_CDATA, s+strlen("<![CDATA["), res-strlen("<![CDATA[")-strlen("]]>")))
         return 0;
 
     return res;
@@ -110,7 +110,7 @@ static size_t xminl_lex_cdata_raw(struct XMINL_Handler *x, char *s) {
     while (*s != '<')
         s++;
 
-    if (s == t || xminl_push(x, XMINL_LEX_CDATA, t, s-t))
+    if (s == t || xminl_push(x, XMINL_TOKEN_CDATA, t, s-t))
         return 0;
 
     return s-t;
@@ -127,7 +127,7 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
         if (xminl_is_name_start(*s)) {
             name = s;
             s += xminl_lex_name(x, s);
-            if (xminl_push(x, XMINL_LEX_ATTR_NAME, name, s-name))
+            if (xminl_push(x, XMINL_TOKEN_ATTR_NAME, name, s-name))
                 return -1;
         } else {
             done = 1;
@@ -158,7 +158,7 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
             return -1;
         }
 
-        if (xminl_push(x, XMINL_LEX_ATTR_VALUE, value, s-value))
+        if (xminl_push(x, XMINL_TOKEN_ATTR_VALUE, value, s-value))
             return -1;
         s++;
     }
@@ -243,7 +243,7 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
 
     if (!(res = xminl_lex_name(x, s)))
         return 0;
-    if (xminl_push(x, XMINL_LEX_TAG_START, s, res))
+    if (xminl_push(x, XMINL_TOKEN_TAG_START, s, res))
         return 0;
     name = s;
     name_len = res;
@@ -255,7 +255,7 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
 
     if (!strncmp(s, "/>", strlen("/>"))) {
         s += strlen("/>");
-        if (xminl_push(x, XMINL_LEX_TAG_EMPTY, name, name_len))
+        if (xminl_push(x, XMINL_TOKEN_TAG_EMPTY, name, name_len))
             return 0;
         return s-t;
     } else if (*s != '>') {
@@ -278,13 +278,13 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
         return 0;
 
     if (strncmp(s, name, name_len)) {
-        xminl_error(x, "Tag names do not match", s);
+        xminl_error(x, "Missing closing tag", t);
         return 0;
     }
     s += res;
     s += xminl_lex_space(x, s);
 
-    if (xminl_push(x, XMINL_LEX_TAG_END, name, name_len))
+    if (xminl_push(x, XMINL_TOKEN_TAG_END, name, name_len))
         return 0;
 
     if (*s != '>') {
@@ -296,15 +296,15 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
     return s-t;
 }
 
-struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Lex *lex, size_t lex_len) {
+struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Token *token, size_t token_len) {
     struct XMINL_Handler x;
     memset(&x, 0, sizeof(x));
-    memset(lex, 0, sizeof(struct XMINL_Lex)*lex_len);
+    memset(token, 0, sizeof(struct XMINL_Token)*token_len);
     memset(data, 0, sizeof(char)*data_len);
     x.data_buf = x.data_bufp = data;
-    x.lex_buf = x.lex_bufp = lex;
+    x.token_buf = x.token_bufp = token;
     x.data_len = data_len;
-    x.lex_len = lex_len;
+    x.token_len = token_len;
     return x;
 }
 
