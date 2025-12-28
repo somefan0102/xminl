@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Print all the tokens, type and value */
+    /* Print all the tokens, both its type and its value */
     for (i = 0; i < TOKEN_SIZE && tokens[i].type; i++) {
         printf("%12s | %s\n", type_to_str(x.token_buf[i].type), x.token_buf[i].value);
     }
