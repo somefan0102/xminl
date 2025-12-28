@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     */
     struct XMINL_Handler x = xminl_set(data, DATA_SIZE, tokens, TOKEN_SIZE);
 
-    int i;
+    int i, count;
 
     /* file setup stuff. move along */
     char document[DOCUMENT_SIZE];
@@ -43,7 +43,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    fread(document, sizeof(char), DOCUMENT_SIZE, xml_file);
+    count = fread(document, sizeof(char), DOCUMENT_SIZE, xml_file);
+    document[count] = '\0';
 
     /*
         xminl_lex begins the lexing process. This is the only time where you use the doc string arg.
