@@ -77,9 +77,7 @@ static size_t xminl_lex_group(struct XMINL_Handler *x, char *s, char *start, cha
 }
 
 static size_t xminl_lex_pi(struct XMINL_Handler *x, char *s) {
-    int res = xminl_lex_group(x, s, "<?", "?>",
-        "Invalid start PI declaration", "Invalid end PI declaration"
-    );
+    int res = xminl_lex_group(x, s, "<?", "?>", "Invalid start PI declaration", "Invalid end PI declaration");
 
     if (!res || xminl_push(x, XMINL_TOKEN_PI, s, res))
         return 0;
@@ -88,15 +86,11 @@ static size_t xminl_lex_pi(struct XMINL_Handler *x, char *s) {
 }
 
 static size_t xminl_lex_comment(struct XMINL_Handler *x, char *s) {
-    return xminl_lex_group(x, s, "<!--", "-->",
-        "Invalid start comment", "Invalid end comment"
-    );
+    return xminl_lex_group(x, s, "<!--", "-->", "Invalid start comment", "Invalid end comment");
 }
 
 static size_t xminl_lex_cdata(struct XMINL_Handler *x, char *s) {
-    int res = xminl_lex_group(x, s, "<![CDATA[", "]]>",
-        "Invalid start CDATA section", "Invalid end CDATA section"
-    );
+    int res = xminl_lex_group(x, s, "<![CDATA[", "]]>", "Invalid start CDATA section", "Invalid end CDATA section");
 
     if (!res || xminl_push(x, XMINL_TOKEN_CDATA, s+strlen("<![CDATA["), res-strlen("<![CDATA[")-strlen("]]>")))
         return 0;
@@ -166,74 +160,11 @@ static size_t xminl_lex_attributes(struct XMINL_Handler *x, char *s) {
     return s-t;
 }
 
-static size_t xminl_lex_misc(struct XMINL_Handler *x, char *s) {
+static size_t xminl_lex_stag(struct XMINL_Handler *x, char *s) {
     char *t = s;
-    int done = 0;
-
-    while (!done && *s) {
-        int res = 0;
-
-        if (!strncmp(s, "<?", strlen("<?"))) {
-            if (!(res = xminl_lex_pi(x, s)))
-                return -1;
-        } else if (!strncmp(s, "<!--", strlen("<!--"))) {
-            if (!(res = xminl_lex_comment(x, s)))
-                return -1;
-        } else if (isspace(*s)) {
-            if (!(res = xminl_lex_space(x, s)))
-                return -1;
-        }
-
-        if (res) {
-            s += res;
-        } else {
-            done = 1;
-        }
-    }
-
-    return s-t;
-}
-
-static size_t xminl_lex_element(struct XMINL_Handler *x, char *s);
-
-static size_t xminl_lex_content(struct XMINL_Handler *x, char *s) {
-    char *t = s;
-    int done = 0;
-
-    while (!done && *s) {
-        int res = 0;
-
-        if (!strncmp(s, "<?", strlen("<?"))) {
-            if (!(res = xminl_lex_pi(x, s)))
-                return -1;
-        } else if (!strncmp(s, "<!--", strlen("<!--"))) {
-            if (!(res = xminl_lex_comment(x, s)))
-                return -1;
-        } else if (!strncmp(s, "<![CDATA[", strlen("<![CDATA["))) {
-            if (!(res = xminl_lex_cdata(x, s)))
-                return -1;
-        } else if (*s == '<' && xminl_is_name_start(s[1])) {
-            if (!(res = xminl_lex_element(x, s)))
-                return -1;
-        } else {
-            res = xminl_lex_cdata_raw(x, s);
-        }
-
-        if (res) {
-            s += res;
-        } else {
-            done = 1;
-        }
-    }
-
-    return s-t;
-}
-
-static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
-    char *t = s;
+    int res;
     char *name;
     size_t name_len;
-    int res;
 
     if (*s != '<') {
         xminl_error(x, "No start bracket for tag", s);
@@ -264,9 +195,14 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
     }
     s++;
 
-    if ((res = xminl_lex_content(x, s)) == -1)
-        return 0;
-    s += res;
+    return s-t;
+}
+
+static size_t xminl_lex_etag(struct XMINL_Handler *x, char *s) {
+    char *t = s;
+    int res;
+    char *name;
+    size_t name_len;
 
     if (strncmp(s, "</", strlen("</"))) {
         xminl_error(x, "No starting bracket for closing tag", s);
@@ -276,11 +212,8 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
 
     if (!(res = xminl_lex_name(x, s)))
         return 0;
-
-    if (strncmp(s, name, name_len)) {
-        xminl_error(x, "Missing closing tag", t);
-        return 0;
-    }
+    name = s;
+    name_len = res;
     s += res;
     s += xminl_lex_space(x, s);
 
@@ -288,7 +221,7 @@ static size_t xminl_lex_element(struct XMINL_Handler *x, char *s) {
         return 0;
 
     if (*s != '>') {
-        xminl_error(x, "No closing bracket for start tag", s);
+        xminl_error(x, "No closing bracket for end tag", s);
         return 0;
     }
     s++;
@@ -309,19 +242,39 @@ struct XMINL_Handler xminl_set(char *data, size_t data_len, struct XMINL_Token *
 }
 
 int xminl_lex(struct XMINL_Handler *x, char *s) {
-    int res;
+    int done = 0;
 
-    if ((res = xminl_lex_misc(x, s)) == -1)
-        return 1;
-    s += res;
+    while (!done && *s) {
+        int res = 0;
 
-    if (!(res = xminl_lex_element(x, s)))
-        return 1;
-    s += res;
+        if (!strncmp(s, "<?", strlen("<?"))) {
+            if (!(res = xminl_lex_pi(x, s)))
+                return 1;
+        } else if (!strncmp(s, "<!--", strlen("<!--"))) {
+            if (!(res = xminl_lex_comment(x, s)))
+                return 1;
+        } else if (!strncmp(s, "<![CDATA[", strlen("<![CDATA["))) {
+            if (!(res = xminl_lex_cdata(x, s)))
+                return 1;
+        } else if (*s == '<' && xminl_is_name_start(s[1])) {
+            if (!(res = xminl_lex_stag(x, s)))
+                return 1;
+        } else if (!strncmp(s, "</", strlen("</"))) {
+            if (!(res = xminl_lex_etag(x, s)))
+                return 1;
+        } else if (isspace(*s)) {
+            if (!(res = xminl_lex_space(x, s)))
+                return -1;
+        } else {
+            res = xminl_lex_cdata_raw(x, s);
+        }
 
-    if ((res = xminl_lex_misc(x, s)) == -1)
-        return 1;
-    s += res;
+        if (res) {
+            s += res;
+        } else {
+            done = 1;
+        }
+    }
 
     return 0;
 }
