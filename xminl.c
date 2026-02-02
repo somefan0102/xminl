@@ -10,10 +10,10 @@ static int xminl_push(struct XMINL_Handler *x, int type, char *s, size_t len) {
     struct XMINL_Token *token = x->token_bufp;
 
     if (value + len + 1 > x->data_buf + x->data_len) {
-        xminl_error(x, "String data exhausted", NULL);
+        xminl_error(x, "String data exhausted", s);
         return 1;
     } else if (token + 1 > x->token_buf + x->token_len) {
-        xminl_error(x, "Token data exhausted", NULL);
+        xminl_error(x, "Token data exhausted", s);
         return 1;
     }
 
@@ -101,7 +101,7 @@ static size_t xminl_lex_cdata(struct XMINL_Handler *x, char *s) {
 static size_t xminl_lex_cdata_raw(struct XMINL_Handler *x, char *s) {
     char *t = s;
 
-    while (*s != '<')
+    while (*s != '<' && *s)
         s++;
 
     if (s == t || xminl_push(x, XMINL_TOKEN_CDATA, t, s-t))
